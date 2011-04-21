@@ -1,6 +1,15 @@
 <?php
-function hashbang_js() {
-  $path = drupal_get_path('module', 'hashbang');
-  drupal_add_js($path .'/jquery.ba-bbq.js');
-  drupal_add_js($path .'/hashbang.js');
+
+/**
+ * Adds the required javascript files to be used with hashbang
+ * @param bool $force
+ */
+function hashbang_js($force = FALSE) {
+  static $done = FALSE;
+  if (!$done || $force) {
+    $path = drupal_get_path('module', 'hashbang');
+    drupal_add_js($path .'/jquery.ba-bbq.js');
+    drupal_add_js($path .'/hashbang.js');
+    $done = TRUE;
+  }
 }
