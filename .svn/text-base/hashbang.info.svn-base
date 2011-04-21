@@ -1,4 +1,0 @@
-name = "Hashbang"
-description = "Toolkit to provide indexable AJAX/JS URLs"
-core = 6.x
-dependencies[] = ctools 
