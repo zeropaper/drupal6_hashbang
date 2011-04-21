@@ -1,0 +1,6 @@
+<?php
+function hashbang_js() {
+  $path = drupal_get_path('module', 'hashbang');
+  drupal_add_js($path .'/jquery.ba-bbq.js');
+  drupal_add_js($path .'/hashbang.js');
+}
