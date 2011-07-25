@@ -1,15 +1,168 @@
 <?php
 
+//define('HASHBANG_ESCAPED_FRAGMENT', '_escaped_fragment_');
+define('HASHBANG_ESCAPED_FRAGMENT', 'hbnojs');
+
 /**
  * Adds the required javascript files to be used with hashbang
  * @param bool $force
  */
 function hashbang_js($force = FALSE) {
   static $done = FALSE;
+  if (arg(0) == 'admin') {
+    return;
+  }
   if (!$done || $force) {
+    drupal_add_js(array(
+      'hashbang' => array(
+        'ESCAPED_FRAGMENT' => HASHBANG_ESCAPED_FRAGMENT
+      ),
+    ), 'setting');
+    drupal_add_js(array('pagePath' => $_REQUEST['q'], 'hashbang' => hashbang_get()), 'setting');
+    ctools_add_js('ajax-responder');
+    
     $path = drupal_get_path('module', 'hashbang');
-    drupal_add_js($path .'/jquery.ba-bbq.js');
+    drupal_add_js($path .'/js/jquery.query-2.1.7.js');
     drupal_add_js($path .'/hashbang.js');
+    
+    if (variable_get('hashbang_content_enabled', 0)) {
+      drupal_add_js($path .'/js/jquery.json-2.2.js');
+      drupal_add_js($path .'/jquery.ba-bbq.js');
+      drupal_add_js($path .'/plugins/processes/content/jquery.animate-shadow.js');
+      drupal_add_js($path .'/plugins/processes/content/hashbang.content.js');
+    }
     $done = TRUE;
   }
+}
+
+
+
+
+/**
+ * Utility to format an URL for hashbang use.
+ * The variables returned by hashbang_get() are reused 
+ * but overwritten if $hashbang_data has this property.
+ * 
+ * Important note:
+ * Only keys with values are kept in the returned string.
+ * 
+ * @param array $hashbang_data
+ * 	By setting a key to something empty (see array_filter),
+ * 	you will prevent it to appear in the returned string
+ *  (you clear it actually, this might be a feature).
+ *  
+ * @param FALSE|string $path
+ * 	By setting the $path parameter to FALSE (strictly speaky)
+ * 	you will build a URL that keep the user on the same page
+ *  but might trigger the hashchnage event with the given
+ *  $hashbang_data.
+ */
+function hashbang_url($hashbang_data, $path) {
+  $query = $_GET;
+  unset($query['q'], $query[HASHBANG_ESCAPED_FRAGMENT]);
+  $hb = hashbang_get();
+  foreach ($hb as $key => $value) {
+    unset($query[$key]);
+  }
+  
+  $dbg = array(
+    'query' => $query,
+    'hb' => $hb,
+    'hashbang_data' => $hashbang_data,
+  );
+  
+  $query = drupal_query_string_encode(array_filter($query));
+  $hashbang_data = array_filter(array_merge($hb, (array)$hashbang_data));
+  $query = ($query ? $query .'&' : '') . HASHBANG_ESCAPED_FRAGMENT .'='. drupal_urlencode(drupal_query_string_encode($hashbang_data));
+  
+  $dbg['query_string'] = $query;
+  
+  return array(
+    'path' => $path !== FALSE ? $path : $_GET['q'],
+    'query' => $query
+  );
+}
+
+function hashbang_init() {
+  hashbang_js();
+}
+
+function hashbang_preprocess_page($vars, $hook) {
+  //hashbang_render_page($vars, $hook);
+  $nohashchange = variable_get('hashbang_nohashchange', 0);
+  
+  if (is_string($vars['body_classes']) && $nohashchange) {
+    $vars['body_classes'] .= ' no-hashbang';
+  }
+  elseif (is_string($vars['body_classes']) && $nohashchange) {
+    $vars['body_classes'][] = 'no-hashbang';
+  }
+}
+
+function hashbang_render_page($vars, $hook) {
+  if (!empty($_REQUEST['hashbang_ajax'])) {
+    ctools_include('ajax');
+    $commands = array();
+    $commands[] = ctools_ajax_command_append('#messages', $vars['messages']);
+    $commands[] = hashbang_ajax_command_content('#content', $vars['content']);
+    $commands[] = ctools_ajax_command_attr('body', 'class', $vars['attr']['class']);
+    ctools_ajax_render($commands);
+  }
+}
+
+/**
+ * Set the HTML of a given selector to the given data.
+ *
+ * @param $selector
+ *   The CSS selector. This can be any selector jquery uses in $().
+ * @param $html
+ *   The data to use with the jquery replace() function.
+ */
+function hashbang_ajax_command_content($selector, $html, $settings = array()) {
+  
+  return array(
+    'command' => 'hashbangContent',
+    'selector' => $selector,
+    'data' => $html,
+    'settings' => array_merge(array(
+      'speed' => 'slow',
+      'hide' => 'slideUp',
+      'show' => 'slideDown',
+    ), (array)$settings)
+  );
+}
+
+/**
+ * Get the variables passed by HASHBANG_ESCAPED_FRAGMENT
+ * @return array
+ */
+function hashbang_get() {
+  global $_HASHBANG;
+  $_HASHBANG = is_array($_HASHBANG) ? $_HASHBANG : array();
+  if (!empty($_GET[HASHBANG_ESCAPED_FRAGMENT])) {
+    parse_str(urldecode($_GET[HASHBANG_ESCAPED_FRAGMENT]), $_HASHBANG);
+  }
+  return $_HASHBANG;
+}
+
+/**
+ * Create the markup for a hashbang enable link.
+ * @param string $text
+ * @param string $path
+ * @param array $escaped_fragments
+ * @param array $options
+ * @return string
+ */
+function hashbang_l($text, $path = '', $escaped_fragments = array(), $options) {
+  $fragments = array();
+  $options['attributes'] = !empty($options['attributes']) ? $options['attributes'] : array();
+  $options['attributes']['class'] .= ' hashbang';
+  
+  $hashbang_query = http_build_query($escaped_fragments);
+  $hashbang_query = str_replace('amp;', '', $hashbang_query);
+  $options['attributes']['data-url'] = $hashbang_query;
+  $hashbang_query = HASHBANG_ESCAPED_FRAGMENT .'='. urlencode($hashbang_query);
+  
+  $options['query'] = implode('&', array_filter(array($options['query'], $hashbang_query)));
+  return l($text, $path, $options);
 }
