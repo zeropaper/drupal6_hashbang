@@ -6,6 +6,12 @@ Aims and goals
 The main goal of this module is to provide tools for developers who want to make use of the hashbang as described on
 http://code.google.com/web/ajaxcrawling/index.html
 
+Warning
+---------
+The module is already used in some of my websites, but the lack of time to document it might be confusing/frustrating if you try to install it right now.  
+This module will probably never be a "out of the box" solution but a kind of framework instead.
+Now that you are warned...
+
 Install
 ---------
 Put the module folder in your preferred modules directory (sites/all/modules, profiles/yourprofile/modules, ...)
